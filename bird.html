@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>Document</title>
+	<style type="text/css">
+		canvas {
+			margin: 0 auto;
+			display: block;
+			border: 1px solid black;
+		}
+	</style>
+</head>
+<body>
+	<canvas id="myCanvas" width="320" height="480"></canvas>
+	<script type="text/javascript">
+
+		const canvas =document.getElementById("myCanvas");
+		const ctx=canvas.getContext("2d");
+
+		const sprite =new Image();
+		sprite.src='img/sprite.png';
+
+		let frame=0;
+
+
+		const audioScore=new Audio();
+		audioScore.src="audio/sfx_point.wav";
+		const audioFlap=new Audio();
+		audioFlap.src="audio/sfx_flap.wav";
+		const audioHit=new Audio();
+		audioHit.src="audio/sfx_hit.wav";
+		const audioSwooshing=new Audio();
+		audioSwooshing.src="audio/sfx_swooshing.wav";
+		const audioDie=new Audio();
+		audioDie.src="audio/sfx_die.wav";
+
+
+		const status={
+			current:0,
+			getReady:0,
+			game:1,
+			gameOver:2
+		}
+		const bird={
+			animation:[
+			{sx:276,sy:112},
+			{sx:276,sy:139},
+			{sx:276,sy:164},
+			{sx:276,sy:139}
+			],
+			sw:34,
+			sh:26,
+			dx:canvas.width/4,
+			dy:canvas.height/4,
+			dw:34,
+			dh:26,
+			frame:1,
+			gravity:0.1,
+			speed:0,
+			up:4,
+			degree:0*Math.PI/180,
+			draw:function(){
+				let bird=this.animation[this.frame];
+				ctx.save();
+				ctx.translate(this.dx+this.sw/2,this.dy+this.sh/2);
+				ctx.rotate(this.degree);
+				ctx.drawImage(sprite,bird.sx,bird.sy,this.sw,this.sh,-this.sw/2,-this.sh/2,this.dw,this.dh);
+
+				ctx.restore();
+				
+			},
+			flap:function(){
+				this.speed-=this.up;
+			},
+			update:function(){
+				this.period=status.current==status.getReady?10:5;
+				this.frame+=frame%this.period==0?1:0;
+				this.frame=this.frame%this.animation.length;
+				
+				
+				if(status.current==status.getReady)
+				{
+					this.dy=150;
+				}
+				else 
+				{
+					this.speed+=this.gravity;
+					this.dy+=this.speed;
+				}
+				if(this.dy+this.dh>=canvas.height-fg.dh)
+				{
+				this.dy=canvas.height-fg.sh-this.sh;
+
+				if(status.current==status.game)
+					{
+					status.current=status.gameOver;
+					audioDie.play();
+					}
+					
+				}
+				if(this.speed>=this.up){
+					this.degree=90*Math.PI/180;
+					this.frame=1;
+				}
+				else
+				{
+					this.degree=-25*Math.PI/180;
+				}
+				
+			},
+			reset:function(){
+				this.speed=0;
+				this.dy=150;
+			},
+			speedReset:function(){
+				this.speed=0;
+			}
+		}
+
+		const bg={
+			sx:0,
+			sy:0,
+			sw:275,
+			sh:226,
+			dx:0,
+			dy:canvas.height-226,
+			dw:275,
+			dh:226,
+			draw:function(){
+				ctx.drawImage(sprite,this.sx,this.sy,this.sw,this.sh,this.dx,this.dy,this.dw,this.dh);
+				ctx.drawImage(sprite,this.sx,this.sy,this.sw,this.sh,this.dx+this.sw,this.dy,this.dw,this.dh);
+			}
+		}
+
+		const fg={
+			leftx:2,
+			sx:276,
+			sy:0,
+			sw:224,
+			sh:112,
+			dx:0,
+			dy:canvas.height-112,
+			dw:224,
+			dh:112,
+			draw:function(){
+				ctx.drawImage(sprite,this.sx,this.sy,this.sw,this.sh,this.dx,this.dy,this.dw,this.dh);
+				ctx.drawImage(sprite,this.sx,this.sy,this.sw,this.sh,this.dx+this.sw,this.dy,this.dw,this.dh);
+			},
+			update:function(){
+				if(status.current==status.game){
+					this.dx=(this.dx-this.leftx)%(this.dw/this.leftx);
+				}
+			}
+		}
+
+		const pipes={
+			bottom:{
+				sx:502,
+				sy:0
+			},
+			top:{
+				sx:553,
+				sy:0
+			},
+			sw:53,
+			sh:400,
+			gap:85,
+			leftx:2,
+			maxY:-150,
+			position:[],
+			draw:function(){
+				for(var i=0;i<this.position.length;i++){
+					let topX=this.position[i].x;
+					let topY=this.position[i].y;
+					let bottomY=this.position[i].y+this.sh+this.gap;
+
+				ctx.drawImage(sprite,this.top.sx,this.top.sy,this.sw,this.sh,topX,topY,this.sw,this.sh);
+				ctx.drawImage(sprite,this.bottom.sx,this.bottom.sy,this.sw,this.sh,topX,bottomY,this.sw,this.sh);
+				}
+
+				
+				
+			},
+			update:function(){
+				if(status.current!==status.game)return;
+				if(frame%100==0){
+					this.position.push({
+						x:canvas.width,
+						y:(Math.random()+1)*this.maxY
+					});
+				}
+				
+				for(var i=0;i<this.position.length;i++){
+					this.position[i].x-=this.leftx;
+					if(this.position[i].x+this.sw<=0)
+				{
+					this.position.shift();
+					score.value+=1;
+					audioScore.play();
+					score.best=Math.max(score.value,score.best);
+					localStorage.setItem("best",score.best);
+				}
+				if(bird.dx+bird.sw>this.position[i].x&&bird.dx<this.position[i].x+this.sw&&bird.dy+bird.sh>this.position[i].y&&bird.dy<this.position[i].y+this.sh)
+					{
+					status.current=status.gameOver;
+					audioHit.play();
+					}
+					
+
+				if(bird.dx+bird.sw>this.position[i].x&&bird.dx<this.position[i].x+this.sw&&bird.dy+bird.sh>(this.position[i].y+this.sh+this.gap)&&bird.dy<(this.position[i].y+this.sh+this.gap)+this.sh)
+					{
+					status.current=status.gameOver;
+					audioHit.play();
+					}
+
+				}
+			},
+			reset:function(){
+				this.position=[];
+			},
+		}
+		const score={
+			best:localStorage.getItem("best")||0,
+			value:0,
+			draw:function(){
+				ctx.fillStyle="white";
+				ctx.strokeStyle="black";
+			if(status.current==status.game)
+			{
+				ctx.lineWidth=2;
+				ctx.font="35px 微軟正黑體";
+				ctx.fillText(this.value,canvas.width/2,50);
+				ctx.strokeText(this.value,canvas.width/2,50);
+			}
+			else if(status.current==status.gameOver)
+			{
+				ctx.font="25px 微軟正黑體";
+				ctx.fillText(this.value,225,228);
+				ctx.strokeText(this.value,225,228);
+				ctx.fillText(this.best,225,269);
+				ctx.strokeText(this.best,225,269);
+			}
+		},
+		reset:function(){
+			this.value=0;
+		}
+	}
+
+	const btnStart={
+		x:122,
+		y:305,
+		width:83,
+		height:29,
+	}
+	canvas.addEventListener("click",function(e){
+		switch(status.current)
+		{
+			case status.getReady:
+			status.current=status.game;
+			audioSwooshing.play();
+			break;
+			case status.game:
+			bird.flap();
+			audioFlap.play();
+			break;
+			case status.gameOver:
+			let rect=canvas.getBoundingClientRect();
+			let clickX=e.clientX-rect.left;
+			let clickY=e.clientY-rect.top;
+
+			if(clickX>=btnStart.x&&clickX<=btnStart.x+btnStart.width&&clickY>=btnStart.y&&clickY<=btnStart.y+btnStart.height)
+			{
+				pipes.reset();
+				bird.reset();
+				score.reset();
+				status.current=status.getReady;
+			}
+			break;
+		}
+	})
+		const getReady={
+			sx:0,
+			sy:228,
+			sw:173,
+			sh:162,
+			dx:canvas.width/2-174/2,
+			dy:80,
+			dw:173,
+			dh:162,
+			draw:function(){
+				if(status.current==status.getReady){
+					ctx.drawImage(sprite,this.sx,this.sy,this.sw,this.sh,this.dx,this.dy,this.dw,this.dh);
+				}
+				
+			}
+		}
+
+		
+		const gameOver={
+			sx:174,
+			sy:228,
+			sw:226,
+			sh:200,
+			dx:canvas.width/2-226/2,
+			dy:80,
+			dw:226,
+			dh:200,
+			draw:function(){
+				if(status.current==status.gameOver){
+					ctx.drawImage(sprite,this.sx,this.sy,this.sw,this.sh,this.dx,this.dy,this.dw,this.dh);
+				}
+				
+			}
+		}
+
+		canvas.addEventListener("click",function(e){
+		switch(status.current){
+			case status.getReady:
+				status.current=status.game;
+				break;
+			case status.game:
+				bird.flap();
+				break;
+			case status.gameOver:
+				status.current=status.getReady;
+				bird.reset();
+				pipes.reset();
+				break;
+			}
+		})
+		function draw(){
+			ctx.fillStyle="lightskyblue";
+			ctx.fillRect(0,0,canvas.width,canvas.height);
+			score.draw();
+			bg.draw();
+			fg.draw();
+			bird.draw();
+			
+			
+
+			if(status.current==status.game){
+				pipes.draw();
+			}
+			getReady.draw();
+			gameOver.draw();
+		}
+		function update(){
+			
+			fg.update();
+			bird.update();
+			pipes.update();
+		}
+		function loop(){
+			update();
+			draw();
+			frame++;
+			requestAnimationFrame(loop);
+		}
+		loop();
+	</script>
+</body>
+</html>
